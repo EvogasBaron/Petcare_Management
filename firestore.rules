@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function active() { return signedIn() && me().isLocked == false; }
+    function isAdmin()  { return active() && me().role == 'admin'; }
+    function isClinic() { return active() && me().role == 'clinic'; }
+    function isOwner(uid) { return active() && request.auth.uid == uid; }
+    function clinicApproved(clinicId) {
+      return get(/databases/$(database)/documents/clinics/$(clinicId)).data.status == 'approved';
+    }
+    function changedOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.role in ['user', 'clinic']
+                    && request.resource.data.isLocked == false;
+      allow update: if isAdmin()
+                    || (isOwner(uid) && changedOnly(['name', 'phone', 'avatarUrl']));
+    }
+
+    match /pets/{petId} {
+      allow read: if isOwner(resource.data.ownerId) || isAdmin();
+      allow create: if isOwner(request.resource.data.ownerId);
+      allow update: if isOwner(resource.data.ownerId)
+                    && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isOwner(resource.data.ownerId);
+
+      match /{sub}/{docId} {
+        allow read, write: if isOwner(
+          get(/databases/$(database)/documents/pets/$(petId)).data.ownerId);
+      }
+    }
+
+    match /clinics/{clinicId} {
+      allow read: if signedIn() && (resource.data.status == 'approved'
+                    || request.auth.uid == clinicId || isAdmin());
+      allow create: if isClinic() && request.auth.uid == clinicId
+                    && request.resource.data.status == 'pending';
+      allow update: if isAdmin()
+                    || (isClinic() && request.auth.uid == clinicId
+                        && (request.resource.data.status == resource.data.status
+                            || (resource.data.status == 'rejected'
+                                && request.resource.data.status == 'pending')));
+
+      match /services/{id} {
+        allow read: if signedIn();
+        allow write: if isClinic() && request.auth.uid == clinicId;
+      }
+      match /doctors/{id} {
+        allow read: if signedIn();
+        allow write: if isClinic() && request.auth.uid == clinicId;
+      }
+      match /slots/{slotId} {
+        allow read: if signedIn();
+        allow create, update: if active() && clinicApproved(clinicId)
+          && request.resource.data.booked is int
+          && request.resource.data.booked >= 0
+          && request.resource.data.booked <=
+             get(/databases/$(database)/documents/clinics/$(clinicId)).data.slotCapacity;
+      }
+    }
+
+    match /appointments/{id} {
+      allow read: if isOwner(resource.data.userId)
+                  || (isClinic() && request.auth.uid == resource.data.clinicId)
+                  || isAdmin();
+      allow create: if isOwner(request.resource.data.userId)
+                    && request.resource.data.status == 'pending'
+                    && clinicApproved(request.resource.data.clinicId);
+      allow update: if isAdmin()
+        || (isOwner(resource.data.userId)
+            && changedOnly(['status', 'cancelReason', 'cancelledBy', 'updatedAt'])
+            && request.resource.data.status == 'cancelled'
+            && (resource.data.status == 'pending'
+                || (resource.data.status == 'confirmed'
+                    && request.time < resource.data.startTime - duration.value(2, 'h'))))
+        || (isClinic() && request.auth.uid == resource.data.clinicId
+            && changedOnly(['status', 'cancelReason', 'cancelledBy', 'result', 'updatedAt'])
+            && ((resource.data.status == 'pending'
+                 && request.resource.data.status in ['confirmed', 'cancelled'])
+                || (resource.data.status == 'confirmed'
+                    && request.resource.data.status in ['completed', 'cancelled'])));
+    }
+  }
+}

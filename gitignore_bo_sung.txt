@@ -1,0 +1,7 @@
+# Thêm vào cuối file .gitignore của dự án
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+.firebase/
+firebase-debug.log

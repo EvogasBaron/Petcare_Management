@@ -1,0 +1,42 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "appointments", "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "userId", "order": "ASCENDING"},
+        {"fieldPath": "startTime", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "appointments", "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "clinicId", "order": "ASCENDING"},
+        {"fieldPath": "startTime", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "appointments", "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "clinicId", "order": "ASCENDING"},
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "startTime", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "appointments", "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "petId", "order": "ASCENDING"},
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "startTime", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "vaccinations", "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "dueDate", "order": "ASCENDING"}
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

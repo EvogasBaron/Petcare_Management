@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function validImage() {
+      return request.resource.size < 5 * 1024 * 1024
+          && request.resource.contentType.matches('image/.*');
+    }
+    function ownerWrite(uid) {
+      return request.auth != null && request.auth.uid == uid
+          && (request.resource == null || validImage());
+    }
+
+    match /avatars/{uid}/{file} {
+      allow read: if request.auth != null;
+      allow write: if ownerWrite(uid);
+    }
+    match /pets/{uid}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if ownerWrite(uid);
+    }
+    match /health_logs/{uid}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if ownerWrite(uid);
+    }
+    match /clinics/{uid}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if ownerWrite(uid);
+    }
+  }
+}
